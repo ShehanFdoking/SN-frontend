@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { CartContext } from '../../context/CartContext';
 import * as apiService from '../../services/apiService';
@@ -37,9 +37,7 @@ const ProductListPage = () => {
     limit:    12,
   });
 
-  useEffect(() => { fetchProducts(); }, [filter]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       const res = await apiService.getAllProducts(filter);
@@ -47,7 +45,11 @@ const ProductListPage = () => {
     } catch (err) {
       console.error(err);
     } finally { setLoading(false); }
-  };
+  }, [filter]);
+
+  useEffect(() => { 
+    fetchProducts(); 
+  }, [fetchProducts]);
 
   const handleCat = (cat) => setFilter({ ...filter, category: cat, page: 1 });
   const handleSearch = (e) => setFilter({ ...filter, search: e.target.value, page: 1 });
