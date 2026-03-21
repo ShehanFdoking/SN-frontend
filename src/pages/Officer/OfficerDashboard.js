@@ -1,8 +1,14 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useContext, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../../context/AuthContext';
+import * as apiService from '../../services/apiService';
 import './OfficerDashboard.css';
 
 const OfficerDashboard = () => {
+  const { user, setUser } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const [isPromoting, setIsPromoting] = useState(false);
+
   const modules = [
     {
       title: 'Manage Products',
@@ -46,6 +52,55 @@ const OfficerDashboard = () => {
     }
   ];
 
+  const handleRegisterAsAdmin = async () => {
+    if (isPromoting) return;
+
+    if (!window.confirm('Register this officer account as admin?')) {
+      return;
+    }
+
+    const adminPromotionKey = window.prompt('Enter admin registration key');
+    if (!adminPromotionKey) {
+      alert('Admin registration key is required');
+      return;
+    }
+
+    try {
+      setIsPromoting(true);
+      const response = await apiService.registerAdminForOfficerByEmail({
+        email: user?.email,
+        adminPromotionKey
+      });
+      const updatedUser = response.data?.user;
+
+      if (updatedUser) {
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+
+      alert('Registration as admin completed successfully');
+      navigate('/admin-dashboard');
+    } catch (err) {
+      try {
+        // Fallback for environments still using auth-based promotion route.
+        const fallbackResponse = await apiService.registerAdminFromOfficer({ adminPromotionKey });
+        const fallbackUser = fallbackResponse.data?.user;
+
+        if (fallbackUser) {
+          setUser(fallbackUser);
+          localStorage.setItem('user', JSON.stringify(fallbackUser));
+        }
+
+        alert('Registration as admin completed successfully');
+        navigate('/admin-dashboard');
+      } catch (fallbackErr) {
+        alert(fallbackErr.response?.data?.message || err.response?.data?.message || 'Error registering as admin');
+      }
+    } finally {
+      setIsPromoting(false);
+    }
+  };
+
   return (
     <div className="officer-dashboard">
       <div className="container">
@@ -57,7 +112,19 @@ const OfficerDashboard = () => {
               Keep inventory accurate, process orders faster, and manage delivery workflows from one place.
             </p>
           </div>
-          <div className="officer-hero-badge">5 Core Modules</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <div className="officer-hero-badge">5 Core Modules</div>
+            {user?.role === 'officer' && (
+              <button
+                onClick={handleRegisterAsAdmin}
+                disabled={isPromoting}
+                className="officer-module-link"
+                style={{ border: 'none', cursor: isPromoting ? 'not-allowed' : 'pointer' }}
+              >
+                {isPromoting ? 'Registering...' : 'Register As Admin'}
+              </button>
+            )}
+          </div>
         </section>
 
         <div className="officer-module-grid">

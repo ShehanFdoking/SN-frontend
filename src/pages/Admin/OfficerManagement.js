@@ -74,6 +74,18 @@ const OfficerManagement = () => {
     }
   };
 
+  const handlePromoteToAdmin = async (officer) => {
+    if (window.confirm(`Promote ${officer.firstName} ${officer.lastName} to admin?`)) {
+      try {
+        await apiService.registerAdminFromOfficer({ email: officer.email });
+        fetchOfficers();
+        alert('Officer promoted to admin successfully');
+      } catch (err) {
+        alert(err.response?.data?.message || 'Error promoting officer to admin');
+      }
+    }
+  };
+
   return (
     <div className="admin-page-shell">
       <div className="container">
@@ -183,23 +195,32 @@ const OfficerManagement = () => {
                       </span>
                     </td>
                     <td>
-                      {officer.isActive ? (
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {officer.isActive ? (
+                          <button
+                            onClick={() => handleDeactivateOfficer(officer._id)}
+                            className="btn-secondary"
+                            style={{ padding: '6px 10px', fontSize: '12px' }}
+                          >
+                            Deactivate
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleReactivateOfficer(officer._id)}
+                            className="btn-primary"
+                            style={{ padding: '6px 10px', fontSize: '12px' }}
+                          >
+                            Reactivate
+                          </button>
+                        )}
                         <button
-                          onClick={() => handleDeactivateOfficer(officer._id)}
-                          className="btn-secondary"
-                          style={{ padding: '6px 10px', fontSize: '12px' }}
-                        >
-                          Deactivate
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleReactivateOfficer(officer._id)}
+                          onClick={() => handlePromoteToAdmin(officer)}
                           className="btn-primary"
                           style={{ padding: '6px 10px', fontSize: '12px' }}
                         >
-                          Reactivate
+                          Promote To Admin
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}

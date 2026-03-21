@@ -4,6 +4,7 @@ import api from './api';
 export const register = (data) => api.post('/auth/register', data);
 export const login = (data) => api.post('/auth/login', data);
 export const getCurrentUser = () => api.get('/auth/me');
+export const registerAdminFromOfficer = (data) => api.post('/auth/register-admin', data);
 
 // User Services
 export const getUserProfile = (id) => api.get(`/users/${id}`);
@@ -71,6 +72,7 @@ export const generateHistoryPDF = (params) =>
 
 // Admin Services
 export const createOfficer = (data) => api.post('/admin/officers', data);
+export const registerAdminForOfficerByEmail = (data) => api.post('/admin/officers/register-admin', data);
 export const getAllOfficers = () => api.get('/admin/officers');
 export const getOfficerById = (id) => api.get(`/admin/officers/${id}`);
 export const updateOfficer = (id, data) => api.put(`/admin/officers/${id}`, data);
