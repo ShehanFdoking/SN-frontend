@@ -4,6 +4,7 @@ import './AdminPages.css';
 
 const OfficerManagement = () => {
   const [officers, setOfficers] = useState([]);
+  const [promotionRequests, setPromotionRequests] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -16,6 +17,7 @@ const OfficerManagement = () => {
 
   useEffect(() => {
     fetchOfficers();
+    fetchPromotionRequests();
   }, []);
 
   const fetchOfficers = async () => {
@@ -27,6 +29,15 @@ const OfficerManagement = () => {
       console.error('Error fetching officers:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPromotionRequests = async () => {
+    try {
+      const response = await apiService.getAdminPromotionRequests({ status: 'pending' });
+      setPromotionRequests(response.data || []);
+    } catch (err) {
+      console.error('Error fetching promotion requests:', err);
     }
   };
 
@@ -74,14 +85,31 @@ const OfficerManagement = () => {
     }
   };
 
-  const handlePromoteToAdmin = async (officer) => {
-    if (window.confirm(`Promote ${officer.firstName} ${officer.lastName} to admin?`)) {
+  const handlePromoteToAdmin = async (request) => {
+    const name = `${request.officerId?.firstName || ''} ${request.officerId?.lastName || ''}`.trim() || request.email;
+    if (window.confirm(`Approve admin access request for ${name}?`)) {
       try {
-        await apiService.registerAdminFromOfficer({ email: officer.email });
+        await apiService.approveAdminPromotionRequest(request._id);
+        fetchPromotionRequests();
         fetchOfficers();
-        alert('Officer promoted to admin successfully');
+        alert('Admin access request approved successfully');
       } catch (err) {
-        alert(err.response?.data?.message || 'Error promoting officer to admin');
+        alert(err.response?.data?.message || 'Error approving admin request');
+      }
+    }
+  };
+
+  const handleRejectPromotionRequest = async (request) => {
+    const name = `${request.officerId?.firstName || ''} ${request.officerId?.lastName || ''}`.trim() || request.email;
+    if (window.confirm(`Reject admin access request for ${name}?`)) {
+      try {
+        await apiService.rejectAdminPromotionRequest(request._id, {
+          note: 'Rejected by admin'
+        });
+        fetchPromotionRequests();
+        alert('Admin access request rejected');
+      } catch (err) {
+        alert(err.response?.data?.message || 'Error rejecting admin request');
       }
     }
   };
@@ -168,65 +196,108 @@ const OfficerManagement = () => {
         {loading ? (
           <div className="spinner"></div>
         ) : (
-          <section className="admin-panel-card">
-            <div className="admin-panel-head">
-              <h3>Officers</h3>
-              <span className="admin-panel-pill">{officers.length} members</span>
-            </div>
-            <table className="table admin-table-polish">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Phone</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {officers.map((officer) => (
-                  <tr key={officer._id}>
-                    <td>{officer.firstName} {officer.lastName}</td>
-                    <td>{officer.email}</td>
-                    <td>{officer.phone}</td>
-                    <td>
-                      <span className={`badge ${officer.isActive ? 'badge-success' : 'badge-danger'}`}>
-                        {officer.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {officer.isActive ? (
-                          <button
-                            onClick={() => handleDeactivateOfficer(officer._id)}
-                            className="btn-secondary"
-                            style={{ padding: '6px 10px', fontSize: '12px' }}
-                          >
-                            Deactivate
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleReactivateOfficer(officer._id)}
-                            className="btn-primary"
-                            style={{ padding: '6px 10px', fontSize: '12px' }}
-                          >
-                            Reactivate
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handlePromoteToAdmin(officer)}
-                          className="btn-primary"
-                          style={{ padding: '6px 10px', fontSize: '12px' }}
-                        >
-                          Promote To Admin
-                        </button>
-                      </div>
-                    </td>
+          <>
+            <section className="admin-panel-card" style={{ marginBottom: '20px' }}>
+              <div className="admin-panel-head">
+                <h3>Pending Admin Access Requests</h3>
+                <span className="admin-panel-pill">{promotionRequests.length} pending</span>
+              </div>
+              {promotionRequests.length === 0 ? (
+                <p style={{ margin: 0, color: '#6b7280' }}>No pending requests.</p>
+              ) : (
+                <table className="table admin-table-polish">
+                  <thead>
+                    <tr>
+                      <th>Officer</th>
+                      <th>Email</th>
+                      <th>Requested At</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {promotionRequests.map((request) => (
+                      <tr key={request._id}>
+                        <td>{request.officerId?.firstName} {request.officerId?.lastName}</td>
+                        <td>{request.email}</td>
+                        <td>{new Date(request.requestedAt).toLocaleString()}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <button
+                              onClick={() => handlePromoteToAdmin(request)}
+                              className="btn-primary"
+                              style={{ padding: '6px 10px', fontSize: '12px' }}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleRejectPromotionRequest(request)}
+                              className="btn-secondary"
+                              style={{ padding: '6px 10px', fontSize: '12px' }}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </section>
+
+            <section className="admin-panel-card">
+              <div className="admin-panel-head">
+                <h3>Officers</h3>
+                <span className="admin-panel-pill">{officers.length} members</span>
+              </div>
+              <table className="table admin-table-polish">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th>Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+                </thead>
+                <tbody>
+                  {officers.map((officer) => (
+                    <tr key={officer._id}>
+                      <td>{officer.firstName} {officer.lastName}</td>
+                      <td>{officer.email}</td>
+                      <td>{officer.phone}</td>
+                      <td>
+                        <span className={`badge ${officer.isActive ? 'badge-success' : 'badge-danger'}`}>
+                          {officer.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {officer.isActive ? (
+                            <button
+                              onClick={() => handleDeactivateOfficer(officer._id)}
+                              className="btn-secondary"
+                              style={{ padding: '6px 10px', fontSize: '12px' }}
+                            >
+                              Deactivate
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleReactivateOfficer(officer._id)}
+                              className="btn-primary"
+                              style={{ padding: '6px 10px', fontSize: '12px' }}
+                            >
+                              Reactivate
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          </>
         )}
       </div>
     </div>

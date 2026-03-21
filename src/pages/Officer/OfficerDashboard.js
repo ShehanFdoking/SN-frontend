@@ -1,13 +1,12 @@
 import React, { useContext, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import * as apiService from '../../services/apiService';
 import './OfficerDashboard.css';
 
 const OfficerDashboard = () => {
-  const { user, setUser } = useContext(AuthContext);
-  const navigate = useNavigate();
-  const [isPromoting, setIsPromoting] = useState(false);
+  const { user } = useContext(AuthContext);
+  const [isRequesting, setIsRequesting] = useState(false);
 
   const modules = [
     {
@@ -53,51 +52,20 @@ const OfficerDashboard = () => {
   ];
 
   const handleRegisterAsAdmin = async () => {
-    if (isPromoting) return;
+    if (isRequesting) return;
 
-    if (!window.confirm('Register this officer account as admin?')) {
-      return;
-    }
-
-    const adminPromotionKey = window.prompt('Enter admin registration key');
-    if (!adminPromotionKey) {
-      alert('Admin registration key is required');
+    if (!window.confirm('Submit an admin access request for this officer account?')) {
       return;
     }
 
     try {
-      setIsPromoting(true);
-      const response = await apiService.registerAdminForOfficerByEmail({
-        email: user?.email,
-        adminPromotionKey
-      });
-      const updatedUser = response.data?.user;
-
-      if (updatedUser) {
-        setUser(updatedUser);
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-      }
-
-      alert('Registration as admin completed successfully');
-      navigate('/admin-dashboard');
+      setIsRequesting(true);
+      await apiService.createAdminPromotionRequest();
+      alert('Admin access request submitted. Please wait for admin approval.');
     } catch (err) {
-      try {
-        // Fallback for environments still using auth-based promotion route.
-        const fallbackResponse = await apiService.registerAdminFromOfficer({ adminPromotionKey });
-        const fallbackUser = fallbackResponse.data?.user;
-
-        if (fallbackUser) {
-          setUser(fallbackUser);
-          localStorage.setItem('user', JSON.stringify(fallbackUser));
-        }
-
-        alert('Registration as admin completed successfully');
-        navigate('/admin-dashboard');
-      } catch (fallbackErr) {
-        alert(fallbackErr.response?.data?.message || err.response?.data?.message || 'Error registering as admin');
-      }
+      alert(err.response?.data?.message || 'Error submitting admin access request');
     } finally {
-      setIsPromoting(false);
+      setIsRequesting(false);
     }
   };
 
@@ -117,11 +85,11 @@ const OfficerDashboard = () => {
             {user?.role === 'officer' && (
               <button
                 onClick={handleRegisterAsAdmin}
-                disabled={isPromoting}
+                disabled={isRequesting}
                 className="officer-module-link"
-                style={{ border: 'none', cursor: isPromoting ? 'not-allowed' : 'pointer' }}
+                style={{ border: 'none', cursor: isRequesting ? 'not-allowed' : 'pointer' }}
               >
-                {isPromoting ? 'Registering...' : 'Register As Admin'}
+                {isRequesting ? 'Submitting...' : 'Request Admin Access'}
               </button>
             )}
           </div>
